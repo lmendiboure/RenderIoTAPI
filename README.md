@@ -304,8 +304,6 @@ Identifiez-vous avec les identifiants par défaut :
 
     -   Donnez un nom à votre tableau de bord et sauvegardez-le.
 
-* * * * *
-
 ### 4. Tester et ajuster
 
 1.  **Simuler différentes requêtes :**
@@ -318,38 +316,110 @@ Identifiez-vous avec les identifiants par défaut :
 
 ---
 
-## Étape 6 : Monitoring des performances
+
+## Étape 6 : Monitoring des performances du conteneur Edge
 
 ### Objectif
 
-Collecter et afficher les métriques système du serveur Edge (CPU, RAM, etc.).
+Configurer un système pour surveiller les performances du conteneur Docker exécutant le serveur Edge, telles que l'utilisation du CPU, de la mémoire, et d'autres ressources. Ces métriques seront visualisées dans Grafana.
 
-### Tâches
+---
 
-1. Configurer `prom-client` pour exposer les métriques système :
+### 1. Exposer les métriques avec Prometheus
 
-```python
-from prometheus_client import Gauge, start_http_server
-import psutil
+1. **Installer la bibliothèque Python `prometheus_client` :**
 
-cpu_usage = Gauge('cpu_usage', 'Usage CPU')
-ram_usage = Gauge('ram_usage', 'Usage RAM')
+   Ajoutez la bibliothèque `prometheus_client` à votre serveur Edge pour exposer les métriques :
 
-start_http_server(8000)
+   ```bash
+   pip install prometheus_client psutil
+   ```
 
-# Mettre à jour régulièrement les métriques
-while True:
-    cpu_usage.set(psutil.cpu_percent())
-    ram_usage.set(psutil.virtual_memory().percent)
-```
+2. **Modifier le code du serveur Edge :**
 
-2. Ajouter ces métriques dans Grafana :
-    - Configurez une source de données Prometheus pointant vers le serveur Edge.
-    - Ajoutez des panels pour surveiller le CPU, la RAM et d'autres paramètres.
+   Ajoutez des métriques au code du serveur Edge pour suivre l'utilisation des ressources système :
 
-### Livrable attendu
+   ```python
+   from prometheus_client import Gauge, start_http_server
+   import psutil
+   import time
 
-Un tableau de bord Grafana affichant les performances du serveur Edge.
+   # Démarrer un serveur Prometheus
+   start_http_server(8001)
+
+   # Définitions des métriques
+   cpu_usage = Gauge('edge_cpu_usage', 'CPU usage of the Edge container')
+   memory_usage = Gauge('edge_memory_usage', 'Memory usage of the Edge container')
+   disk_usage = Gauge('edge_disk_usage', 'Disk usage of the Edge container')
+
+   # Fonction de mise à jour des métriques
+   def update_metrics():
+       while True:
+           cpu_usage.set(psutil.cpu_percent())
+           memory_usage.set(psutil.virtual_memory().percent)
+           disk_usage.set(psutil.disk_usage('/').percent)
+           time.sleep(5)  # Mettre à jour toutes les 5 secondes
+
+   # Exécuter la mise à jour dans un thread
+   import threading
+   threading.Thread(target=update_metrics, daemon=True).start()
+   ```
+
+   - **Port utilisé** : `8001` pour exposer les métriques via Prometheus.
+
+3. **Tester les métriques :**
+
+   - Lancez le serveur Edge.
+   - Accédez à `http://localhost:8001/metrics` pour voir les métriques Prometheus en texte brut.
+
+---
+
+### 2. Configurer Grafana pour surveiller les métriques
+
+1. **Configurer une source de données Prometheus :**
+
+   - Exécutez Prometheus localement dans un conteneur Docker :
+     ```bash
+     docker run -d --name=prometheus -p 9090:9090 -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+     ```
+
+     Le fichier `prometheus.yml` doit contenir :
+     ```yaml
+     scrape_configs:
+       - job_name: 'edge'
+         static_configs:
+           - targets: ['host.docker.internal:8001']  # Adresse du serveur Edge exposant les métriques
+     ```
+
+   - Ajoutez Prometheus comme source de données dans Grafana :
+     - Accédez à **Configuration > Data Sources**.
+     - Cliquez sur **Add data source**.
+     - Sélectionnez **Prometheus** et configurez l’URL comme suit :
+       ```
+       URL: http://localhost:9090
+       ```
+     - Cliquez sur **Save & Test**.
+
+2. **Créer un tableau de bord Grafana pour les métriques :**
+
+   - Allez dans **Create > Dashboard**.
+   - Ajoutez un **Panel** pour chaque métrique (CPU, mémoire, disque).
+   - Configurez les requêtes Prometheus pour extraire les données :
+     - **CPU** : `edge_cpu_usage`
+     - **Mémoire** : `edge_memory_usage`
+     - **Disque** : `edge_disk_usage`
+
+3. **Visualiser les données :**
+
+   - Configurez les visualisations pour chaque panel :
+     - Utilisez des graphiques linéaires pour le CPU et la mémoire.
+     - Utilisez une jauge pour l'utilisation du disque.
+
+---
+
+### 3. Tester et ajuster
+
+   - Les graphiques doivent refléter les variations des ressources consommées par le conteneur Edge.
 
 ---
 
