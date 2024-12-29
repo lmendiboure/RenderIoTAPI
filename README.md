@@ -278,14 +278,7 @@ Identifiez-vous avec les identifiants par défaut :
     -   Sélectionnez le plugin **Simple JSON** (vous devrez peut-être l'installer via Grafana ou Docker).
 2.  **Configurer l'URL de votre serveur Edge :**
 
-    -   Remplissez le champ **URL** avec l'adresse de votre serveur Edge en cours d'exécution :
-
-    ```bash
-        URL: http://host.docker.internal:5000
-    ```
-
-        Si vous exécutez Grafana et le serveur Edge sur la même machine.
-
+    -   Remplissez le champ **URL** avec l'adresse de votre serveur Edge en cours d'exécution : *http://host.docker.internal:5000* (si les deux sur la même machine)
     -   Cliquez sur **Save & Test** pour vérifier la connexion.
 
 **Note: Si vous utilisez Docker pour les deux services, assurez-vous que les conteneurs peuvent communiquer entre eux via un réseau Docker personnalisé.**
@@ -296,20 +289,12 @@ Identifiez-vous avec les identifiants par défaut :
 
     -   Accédez à **Create > Dashboard**.
     -   Ajoutez un **Panel** pour afficher les données.
-    -   
+        
 2.  **Configurer une requête vers le serveur Edge :**
 
     -   Définissez une requête spécifique à un endpoint du serveur Edge :
-        -   Pour afficher les statistiques d'un objet :
-
-```bash
-    Endpoint: /processed_data?object_id=1`
-```
-        -   Pour afficher les statistiques globales d'un client :
-
-```bash
-    Endpoint: /client_statistics?client_id=client1
-```
+        -   Pour afficher les statistiques d'un objet : *Endpoint: /processed_data?object_id=1*
+        -   Pour afficher les statistiques globales d'un client : *Endpoint: /client_statistics?client_id=client1*
 
 3.  **Visualiser les données :**
 
