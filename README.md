@@ -244,25 +244,94 @@ A l'aide de vos connaissances, utilisez `docker build` et `docker run` pour lanc
 
 ---
 
-## Étape 5 : Visualisation avec Grafana
+## Étape 5 : Visualisation avec Grafana dans un conteneur local
 
 ### Objectif
 
-Créer un tableau de bord pour visualiser les données IoT prétraitées.
+Déployer Grafana dans un conteneur Docker local, le configurer pour utiliser les données prétraitées de votre serveur Edge et créer un tableau de bord pour visualiser les données IoT.
 
-### Tâches
+---
 
-1. Créer un compte Grafana Cloud (gratuit).
-2. Ajouter une source de données :
-    - Configurez une source de données Prometheus ou JSON.
-    - Fournissez l'URL de votre serveur Edge comme source de données.
-3. Configurer un tableau de bord :
-    - Créez des panels pour afficher les moyennes des données IoT.
-    - Ajoutez des graphiques pour visualiser les anomalies détectées.
+### 1. Lancer Grafana en local
 
-### Livrable attendu
+1. **Exécuter un conteneur Docker Grafana :**
 
-Un tableau de bord Grafana affichant les données prétraitées.
+Téléchargez et lancez Grafana dans un conteneur local avec Docker :
+
+```bash
+   docker run -d --name=grafana -p 3000:3000 grafana/grafana
+```
+
+Accédez à Grafana via votre navigateur à l'adresse : http://localhost:3000.
+
+Identifiez-vous avec les identifiants par défaut :
+ - Utilisateur : admin
+ - Mot de passe : admin.
+
+### 2. Ajouter une source de données (données prétraitées)
+
+1.  **Configurer la source de données :**
+
+    -   Connectez-vous à Grafana.
+    -   Rendez-vous dans **Configuration > Data Sources**.
+    -   Cliquez sur **Add data source**.
+    -   Sélectionnez le plugin **Simple JSON** (vous devrez peut-être l'installer via Grafana ou Docker).
+2.  **Configurer l'URL de votre serveur Edge :**
+
+    -   Remplissez le champ **URL** avec l'adresse de votre serveur Edge en cours d'exécution :
+
+        plaintext
+
+        Copier le code
+
+        `URL: http://host.docker.internal:5000`
+
+        Si vous exécutez Grafana et le serveur Edge sur la même machine.
+
+    -   Cliquez sur **Save & Test** pour vérifier la connexion.
+
+    **Note :** Si vous utilisez Docker pour les deux services, assurez-vous que les conteneurs peuvent communiquer entre eux via un réseau Docker personnalisé.
+
+### 3. Créer un tableau de bord
+
+1.  **Créer un tableau de bord dans Grafana :**
+
+    -   Accédez à **Create > Dashboard**.
+    -   Ajoutez un **Panel** pour afficher les données.
+    -   
+2.  **Configurer une requête vers le serveur Edge :**
+
+    -   Définissez une requête spécifique à un endpoint du serveur Edge :
+        -   Pour afficher les statistiques d'un objet :
+
+```bash
+Endpoint: /processed_data?object_id=1`
+
+        -   Pour afficher les statistiques globales d'un client :
+
+```bash
+   Endpoint: /client_statistics?client_id=client1
+```
+
+3.  **Visualiser les données :**
+
+    -   Configurez la visualisation selon vos besoins (graphique linéaire, jauge, tableau, etc.).
+    -   Testez les panels en modifiant les objets ou clients ciblés dans les requêtes.
+4.  **Sauvegarder le tableau de bord :**
+
+    -   Donnez un nom à votre tableau de bord et sauvegardez-le.
+
+* * * * *
+
+### 4. Tester et ajuster
+
+1.  **Simuler différentes requêtes :**
+
+    -   Ajoutez plusieurs panels pour visualiser les statistiques de différents objets ou clients.
+    -   Vérifiez que les données affichées changent dynamiquement en fonction des requêtes.
+2.  **Vérifiez les données :**
+
+    -   Assurez-vous que les visualisations reflètent correctement les moyennes, anomalies, et autres statistiques calculées par le serveur Edge.
 
 ---
 
