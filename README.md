@@ -288,7 +288,7 @@ Identifiez-vous avec les identifiants par défaut :
 
     -   Cliquez sur **Save & Test** pour vérifier la connexion.
 
-    **Note :** Si vous utilisez Docker pour les deux services, assurez-vous que les conteneurs peuvent communiquer entre eux via un réseau Docker personnalisé.
+**Note: Si vous utilisez Docker pour les deux services, assurez-vous que les conteneurs peuvent communiquer entre eux via un réseau Docker personnalisé.**
 
 ### 3. Créer un tableau de bord
 
