@@ -112,29 +112,109 @@ if __name__ == "__main__":
 
 Ajouter une authentification via des clés API pour garantir que chaque client accède uniquement à ses données.
 
-### Tâches
+### Explications et Tâches
 
-1. Créer des clés API pour chaque client :
+1. **Créer des clés API pour chaque client** :
 
-```python
-API_KEYS = {"client1": "key1", "client2": "key2"}
-```
+   Ajoutez un dictionnaire associant les clients à leurs clés :
 
-2. Associer chaque clé API à un client dans le code du serveur Edge.
-3. Implémenter une vérification des clés :
+   ```python
+   API_KEYS = {
+       "client1": "key1",
+       ........
+   }
+   ```
 
-```python
-@app.before_request
-def authenticate():
-    api_key = request.headers.get("x-api-key")
-    if api_key not in API_KEYS.values():
-        return jsonify({"error": "Unauthorized"}), 401
-```
+   Chaque client dispose d'une clé unique qui sera utilisée pour authentifier ses requêtes.
 
-4. Tester l'accès avec des clés valides et invalides :
-    - Simulez des requêtes avec différentes clés API.
-    - Assurez-vous que seules les clés valides permettent l'accès.
+2. **Vérification de l'API key dans le serveur Edge** :
 
+   Implémentez un middleware qui vérifiera l'API key dans les en-têtes des requêtes. Si la clé est absente ou invalide, la requête sera rejetée.
+
+   ```python
+   @app.before_request
+   def authenticate():
+       api_key = request.headers.get("x-api-key")
+       if api_key not in API_KEYS.values():
+           return jsonify({"error": "Unauthorized"}), 401
+
+       # Associer la clé au client correspondant
+       request.client_id = next((client for client, key in API_KEYS.items() if key == api_key), None)
+   ```
+
+   **Q.**
+   - Pourquoi est-il important d'associer l'API key au client ?
+   - Comment utiliser `request.client_id` dans les endpoints pour personnaliser les réponses ?
+
+3. **Utilisation de l'API key dans les endpoints** :
+
+   Mettez à jour les endpoints pour limiter l'accès en fonction du client authentifié :
+
+   ```python
+   @app.route("/client_statistics", methods=["GET"])
+   def client_statistics():
+       client_id = request.client_id  # Récupéré grâce à l'authentification
+       if not client_id:
+           return jsonify({"error": "Unauthorized"}), 401
+
+       response = requests.get(f"{API_URL}/iot_objects/by_client/{client_id}")
+       objects = response.json()
+
+       # Prétraitement des données par client
+       all_values = []
+       for obj in objects:
+           obj_response = requests.get(f"{API_URL}/iot_data/{obj['id']}")
+           obj_data = obj_response.json()
+           values = [entry['value'] for entry in obj_data['measurements']]
+           all_values.extend(values)
+
+       stats = {
+           "average": sum(all_values) / len(all_values),
+           "max": max(all_values),
+           "min": min(all_values)
+       }
+
+       return jsonify({"client_id": client_id, "statistics": stats})
+   ```
+
+4. **Tester les requêtes avec les clés API** :
+
+   - **Requêtes avec une clé valide** :
+
+     ```bash
+     curl -H "x-api-key: ......." http://localhost:5000/client_statistics
+     ```
+
+     Résultat attendu : Les données agrégées des objets appartenant au client `.......`.
+
+   - **Requêtes avec une clé invalide** :
+
+     ```bash
+     curl -H "x-api-key: invalid_key" http://localhost:5000/client_statistics
+     ```
+
+     Résultat attendu :
+
+     ```json
+     {"error": "Unauthorized"}
+     ```
+
+   - **Sans clé API** :
+
+     ```bash
+     curl http://localhost:5000/client_statistics
+     ```
+
+     Résultat attendu :
+
+     ```json
+     {"error": "Unauthorized"}
+     ```
+
+   **Q.**
+   - Que se passe-t-il si un client tente d'utiliser la clé d'un autre client ?
+
+---
 
 ## Étape 4 : Conteneurisation avec Docker
 
@@ -156,18 +236,11 @@ CMD ["python", "app.py"]
 
 2. Construire et exécuter le conteneur :
 
-```bash
-docker build -t edge_server .
-docker run -p 5000:5000 edge_server
-```
+A l'aide de vos connaissances, utilisez `docker build` et `docker run` pour lancer le service.
 
 3. Tester le fonctionnement :
-    - Accédez aux endpoints exposés par le conteneur à l'adresse `http://localhost:5000`.
+    - Accédez aux endpoints exposés par le conteneur.
     - Vérifiez que les données prétraitées sont accessibles.
-
-### Livrable attendu
-
-Un conteneur Docker fonctionnel exécutant le serveur Edge.
 
 ---
 
