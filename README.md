@@ -280,11 +280,9 @@ Identifiez-vous avec les identifiants par défaut :
 
     -   Remplissez le champ **URL** avec l'adresse de votre serveur Edge en cours d'exécution :
 
-        plaintext
-
-        Copier le code
-
-        `URL: http://host.docker.internal:5000`
+    ```bash
+        URL: http://host.docker.internal:5000
+    ```
 
         Si vous exécutez Grafana et le serveur Edge sur la même machine.
 
@@ -304,14 +302,14 @@ Identifiez-vous avec les identifiants par défaut :
     -   Définissez une requête spécifique à un endpoint du serveur Edge :
         -   Pour afficher les statistiques d'un objet :
 
-```bash
-Endpoint: /processed_data?object_id=1`
-
+    ```bash
+        Endpoint: /processed_data?object_id=1`
+    ```
         -   Pour afficher les statistiques globales d'un client :
 
-```bash
-   Endpoint: /client_statistics?client_id=client1
-```
+    ```bash
+       Endpoint: /client_statistics?client_id=client1
+    ```
 
 3.  **Visualiser les données :**
 
