@@ -423,8 +423,42 @@ Configurer un système pour surveiller les performances du conteneur Docker exé
 
 ---
 
-## Extensions
+### Etape 7 : Intégrer plusieurs serveurs Edge et visualiser leurs données dans Grafana
 
-- Déployer le serveur Edge avec Kubernetes pour explorer la scalabilité.
-- Ajouter des notifications en cas d’anomalies via email ou webhook.
-- Implémenter des certificats HTTPS entre Edge et Cloud.
+### Objectif
+
+Avoir la possibilité de lancer plusieurs serveurs Edge (répartis géographiquement ou dédiés à différents groupes de clients) afin de collecter, prétraiter et exposer les données IoT, tout en visualisant de manière centralisée :
+
+- Les performances de chaque Edge (CPU, mémoire, …).  
+- Les données prétraitées issues de leurs capteurs.
+
+### Étapes détaillées
+
+1. **Déployez plusieurs serveurs Edge**  
+   Dupliquez votre code d’application Edge ou créez plusieurs conteneurs Docker basés sur la même image. Ajustez les variables d’environnement (API_URL, ports, etc.) pour chaque instance si nécessaire.Ajustez si nécessaire les variables d’environnement (API_URL, ports, etc.) pour chaque instance.
+
+
+2. **Exposez les métriques Prometheus**  
+   Suivre la logique de l'Etape 6.
+
+3. **Configurez Prometheus pour scraper plusieurs serveurs**  
+   Dans le fichier de configuration de Prometheus (souvent `prometheus.yml`), ajoutez des cibles pour chaque Edge. Vous pouvez avoir une configuration où un seul job référence plusieurs cibles (edge1:8001, edge2:8001, etc.).
+```yaml
+scrape_configs:
+  - job_name: 'edge_servers'
+    static_configs:
+      - targets: ['edge1:8001', 'edge2:8001', 'edge3:8001']
+```
+
+
+4. **Créez des tableaux de bord Grafana pour chaque Edge**  
+   Vous pouvez ajouter une variable dans Grafana (par exemple `$edge_instance`) pour filtrer l’affichage en fonction de l’instance (Edge1, Edge2, etc.). Dans vos requêtes, vous filtrerez sur `instance="$edge_instance"`. Ainsi, vous pouvez basculer facilement entre différents Edge dans un même tableau de bord ou créer un tableau de bord par Edge.
+
+5. **Visualiser les données IoT prétraitées**  
+   Si chaque Edge expose des endpoints (par exemple `/processed_data` ou `/client_statistics`), vous pouvez configurer plusieurs Data Sources (type Simple JSON ou HTTP) dans Grafana, chacune pointant vers un Edge différent. Vous pourrez alors afficher sur un même tableau de bord les données issues de différents Edge.
+
+**Résultat attendu**  
+Vous disposez de plusieurs serveurs Edge pouvant partager la charge de traitement et les données IoT. Dans Grafana, vous surveillez en temps réel les ressources consommées par chaque Edge (CPU, mémoire) et les données agrégées ou prétraitées sur chaque Edge.
+
+---
+
