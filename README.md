@@ -415,8 +415,6 @@ Configurer un système pour surveiller les performances du conteneur Docker exé
      - Utilisez des graphiques linéaires pour le CPU et la mémoire.
      - Utilisez une jauge pour l'utilisation du disque.
 
----
-
 ### 3. Tester et ajuster
 
    - Les graphiques doivent refléter les variations des ressources consommées par le conteneur Edge.
@@ -431,23 +429,27 @@ Avoir la possibilité de lancer plusieurs serveurs Edge (répartis géographique
 
 - Les performances de chaque Edge (CPU, mémoire, …).  
 - Les données prétraitées issues de leurs capteurs.
+---
 
-### Étapes détaillées
+### Étapes principales
 
 1. **Déployez plusieurs serveurs Edge**  
-   Dupliquez votre code d’application Edge ou créez plusieurs conteneurs Docker basés sur la même image. Ajustez les variables d’environnement (API_URL, ports, etc.) pour chaque instance si nécessaire.Ajustez si nécessaire les variables d’environnement (API_URL, ports, etc.) pour chaque instance.
-
+   Dupliquez votre code d’application Edge ou créez plusieurs conteneurs Docker basés sur la même image. Ajustez les variables d’environnement (API_URL, ports, etc.) pour chaque instance si nécessaire. Utiliser un *Docker Compose* pourrait être intéressant à ce niveau. Faites attention aux problèmes de ports que vous pourriez rencontrer.
 
 2. **Exposez les métriques Prometheus**  
    Suivre la logique de l'Etape 6.
 
 3. **Configurez Prometheus pour scraper plusieurs serveurs**  
-   Dans le fichier de configuration de Prometheus (souvent `prometheus.yml`), ajoutez des cibles pour chaque Edge. Vous pouvez avoir une configuration où un seul job référence plusieurs cibles (edge1:8001, edge2:8001, etc.).
+   Dans le fichier de configuration de Prometheus (souvent `prometheus.yml`), ajoutez des cibles pour chaque Edge. Vous pouvez avoir une configuration où un seul job référence plusieurs cibles (edge1:8001, edge2:8001, etc.). Note : adaptez les ports à l'environnement que vous aurez mis en place.
 ```yaml
 scrape_configs:
-  - job_name: 'edge_servers'
+  - job_name: 'edges'
     static_configs:
-      - targets: ['edge1:8001', 'edge2:8001', 'edge3:8001']
+      - targets:
+          - 'localhost:8001'
+          - 'localhost:8002'
+        labels:
+          group: 'multi-edge'
 ```
 
 
@@ -457,8 +459,88 @@ scrape_configs:
 5. **Visualiser les données IoT prétraitées**  
    Si chaque Edge expose des endpoints (par exemple `/processed_data` ou `/client_statistics`), vous pouvez configurer plusieurs Data Sources (type Simple JSON ou HTTP) dans Grafana, chacune pointant vers un Edge différent. Vous pourrez alors afficher sur un même tableau de bord les données issues de différents Edge.
 
-**Résultat attendu**  
-Vous disposez de plusieurs serveurs Edge pouvant partager la charge de traitement et les données IoT. Dans Grafana, vous surveillez en temps réel les ressources consommées par chaque Edge (CPU, mémoire) et les données agrégées ou prétraitées sur chaque Edge.
+---
+### Etape 8 : Héberger plusieurs applications conteneurisées au sein d’un même Edge
+
+### Objectif
+
+Transformer un Edge (une seule machine ou VM) en une plateforme capable de faire tourner plusieurs applications ou microservices, chacun dans son propre conteneur. L’intérêt :
+
+- Mutualiser les ressources d’un unique Edge.  
+- Simplifier les mises à jour et la supervision.
+- Surveiller l’état de chaque application, en plus de l’utilisation globale du Edge.
 
 ---
 
+### Étapes principales
+
+1. **Définir un fichier Docker Compose multi-applications**  
+Sur un Edge donné, vous pouvez créer un fichier comme *docker-compose.edge-apps.yml* :
+```yaml
+version: "3.8"
+services:
+  app_sensor_analytics:
+    image: myorg/edge-sensor-analytics:latest
+    container_name: sensor_analytics
+    environment:
+      - APP_NAME=SensorAnalytics
+    ports:
+      - "6000:6000"
+
+  app_video_stream:
+    image: myorg/edge-video-stream:latest
+    container_name: video_stream
+    environment:
+      - APP_NAME=VideoStream
+    ports:
+      - "6001:6000"
+
+  # Par exemple, cAdvisor pour superviser les conteneurs localement
+  cadvisor:
+    image: gcr.io/google-containers/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+```
+Ici, on a deux applications fictives : app_sensor_analytics et app_video_stream. **cAdvisor** est un conteneur qui expose en temps réel l’utilisation CPU, mémoire, réseau de chaque conteneur Docker.
+
+2. **Surveiller les applications conteneurisées**
+cAdvisor expose par défaut son interface sur le port 8080. Vous pouvez y accéder (ex. http://<IP_EDGE>:8080) pour avoir un aperçu de tous les conteneurs, leur statut, leur consommation CPU/Mémoire, etc.
+
+Pour intégrer cela à Grafana, vous pouvez configurer Prometheus pour qu’il aille chercher les métriques sur http://<IP_EDGE>:8080, puis créer des panels dans Grafana (par conteneur).
+
+Exemple de configuration prometheus.yml :
+```yaml
+scrape_configs:
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['<IP_EDGE>:8080']
+```
+
+3. **Identification des applications**
+Chaque conteneur peut être étiqueté (label Docker, variable d’environnement) pour qu’on sache sur quel Edge il est déployé et de quelle application il s’agit. Exemple :
+```yaml
+services:
+  app_sensor_analytics:
+    image: myorg/edge-sensor-analytics:latest
+    labels:
+      - "edge.name=Edge1"
+      - "app.name=SensorAnalytics"
+```
+Les outils de supervision comme cAdvisor ou Docker Exporter peuvent récupérer ces labels et vous permettre de regrouper/filtrer vos métriques dans Grafana par “edge.name” ou “app.name”.
+
+
+4. **Visualiser l’état de fonctionnement de chaque application**  
+Dans Grafana, vous pouvez créer un tableau de bord listant les conteneurs avec leurs noms et usages CPU/Mémoire.
+
+Vous pouvez définir des alertes si un conteneur dépasse 80 % de CPU, par exemple.
+
+Si vos applications elles-mêmes exposent des métriques (ex : nb de requêtes traitées), vous pouvez les ajouter à Prometheus et les taguer avec app_name ou edge_name.
+
+
+---
