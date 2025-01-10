@@ -480,22 +480,21 @@ Sur un Edge donné, vous pouvez créer un fichier comme *docker-compose.edge-app
 version: "3.8"
 services:
   app_sensor_analytics:
-    image: myorg/edge-sensor-analytics:latest
+    image: MY APPP
     container_name: sensor_analytics
     environment:
       - APP_NAME=SensorAnalytics
     ports:
-      - "6000:6000"
+      - "XXXX:XXXX"
 
   app_video_stream:
-    image: myorg/edge-video-stream:latest
+    image: nginx:alpine
     container_name: video_stream
+    ports:
+      - "6001:80"
     environment:
       - APP_NAME=VideoStream
-    ports:
-      - "6001:6000"
 
-  # Par exemple, cAdvisor pour superviser les conteneurs localement
   cadvisor:
     image: gcr.io/google-containers/cadvisor:latest
     container_name: cadvisor
